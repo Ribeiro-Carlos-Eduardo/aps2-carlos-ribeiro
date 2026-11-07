@@ -1,13 +1,11 @@
 stateDiagram-v2
 
-    [*] --> Criada : criarProposta() / registrarCriacao()
+    [*] --> Criada
 
-    Criada --> EmAnalise : submeterProposta [dadosValidos && quantidadeDisponivel] / notificarVendedor()
-
-    Criada --> Cancelada : submeterProposta [!dadosValidos || !quantidadeDisponivel] / registrarMotivo()
+    Criada --> EmAnalise : submeterProposta [dadosValidos] / notificarVendedor()
+    Criada --> Cancelada : submeterProposta [dadosInvalidos] / registrarMotivo()
 
     EmAnalise --> PropostaAceita : aceitarProposta [propostaValida] / registrarAceite()
-
     EmAnalise --> Cancelada : rejeitarProposta [propostaPendente] / notificarComprador()
 
     PropostaAceita --> SobraSeparada : separarSobra [quantidadeDisponivel] / reduzirQuantidade()
@@ -16,15 +14,16 @@ stateDiagram-v2
 
     state AguardandoPagamento {
         [*] --> CobrancaCriada
-        CobrancaCriada --> Conciliando : depositoRecebido / iniciarConciliacao()
+        CobrancaCriada --> Monitorando : iniciarMonitoramento
+        Monitorando --> Conciliando : depositoRecebido / iniciarConciliacao()
         Conciliando --> [*] : conciliacaoFinalizada
+
+        Monitorando : entry / iniciarCronometro()
+        Monitorando : do / monitorarPagamento()
+        Monitorando : exit / encerrarCronometro()
     }
 
-    AguardandoPagamento : entry / iniciarCronometro()
-    AguardandoPagamento : do / monitorarPagamento()
-    AguardandoPagamento : exit / encerrarCronometro()
-
-    AguardandoPagamento --> FundosRetidos : confirmarPagamento [assinaturaValida && valorIntegral] / registrarCustodia()
+    AguardandoPagamento --> FundosRetidos : confirmarPagamento [pagamentoValido] / registrarCustodia()
 
     AguardandoPagamento --> Expirada : expirarPagamento [prazoEncerrado] / liberarQuantidade()
 
@@ -32,7 +31,7 @@ stateDiagram-v2
 
     FundosRetidos --> Confirmada : confirmarNegociacao [fundosRetidos] / autorizarContinuidade()
 
-    Confirmada --> Concluida : concluirNegocio [obrigacoesRegistradas] / registrarConclusao()
+    Confirmada --> Concluida : concluirNegocio [negociacaoConfirmada] / registrarConclusao()
 
     Concluida --> [*]
     Cancelada --> [*]
