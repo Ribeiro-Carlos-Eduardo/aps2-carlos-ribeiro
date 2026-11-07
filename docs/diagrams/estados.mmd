@@ -1,0 +1,39 @@
+stateDiagram-v2
+
+    [*] --> Criada : criarProposta() / registrarCriacao()
+
+    Criada --> EmAnalise : submeterProposta [dadosValidos && quantidadeDisponivel] / notificarVendedor()
+
+    Criada --> Cancelada : submeterProposta [!dadosValidos || !quantidadeDisponivel] / registrarMotivo()
+
+    EmAnalise --> PropostaAceita : aceitarProposta [propostaValida] / registrarAceite()
+
+    EmAnalise --> Cancelada : rejeitarProposta [propostaPendente] / notificarComprador()
+
+    PropostaAceita --> SobraSeparada : separarSobra [quantidadeDisponivel] / reduzirQuantidade()
+
+    SobraSeparada --> AguardandoPagamento : criarCobranca [sobraSeparada] / solicitarEscrow()
+
+    state AguardandoPagamento {
+        [*] --> CobrancaCriada
+        CobrancaCriada --> Conciliando : depositoRecebido / iniciarConciliacao()
+        Conciliando --> [*] : conciliacaoFinalizada
+    }
+
+    AguardandoPagamento : entry / iniciarCronometro()
+    AguardandoPagamento : do / monitorarPagamento()
+    AguardandoPagamento : exit / encerrarCronometro()
+
+    AguardandoPagamento --> FundosRetidos : confirmarPagamento [assinaturaValida && valorIntegral] / registrarCustodia()
+
+    AguardandoPagamento --> Expirada : expirarPagamento [prazoEncerrado] / liberarQuantidade()
+
+    AguardandoPagamento --> Cancelada : recusarPagamento [pagamentoRecusado] / liberarQuantidade()
+
+    FundosRetidos --> Confirmada : confirmarNegociacao [fundosRetidos] / autorizarContinuidade()
+
+    Confirmada --> Concluida : concluirNegocio [obrigacoesRegistradas] / registrarConclusao()
+
+    Concluida --> [*]
+    Cancelada --> [*]
+    Expirada --> [*]
