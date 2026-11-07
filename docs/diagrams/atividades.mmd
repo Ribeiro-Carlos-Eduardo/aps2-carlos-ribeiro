@@ -1,0 +1,107 @@
+flowchart TB
+    INICIO([Inicio]) --> C1
+
+    subgraph COMPRADOR["Raia 1 - Empresa Compradora"]
+        C1[Selecionar oferta]
+        C2[Informar quantidade e valor]
+        C3[Enviar proposta]
+        C4[Realizar deposito no gateway]
+        C5[Receber resultado da negociacao]
+    end
+
+    subgraph MARKETPLACE["Raia 2 - Marketplace"]
+        M1[Validar dados da proposta]
+        D1{Proposta valida e quantidade disponivel?}
+        M2[Registrar proposta como PENDENTE]
+        M3[Rejeitar proposta]
+        M4[Registrar aceite]
+        M5[Separar quantidade negociada]
+        M6[Criar transacao]
+        M7[Solicitar custodia do pagamento]
+        D2{Pagamento confirmado no prazo?}
+
+        FORK1["FORK"]
+        M8[Atualizar transacao para FUNDOS RETIDOS]
+        M9[Registrar evento de auditoria]
+        JOIN1["JOIN"]
+
+        M10[Confirmar negociacao]
+
+        FORK2["FORK"]
+        M11[Cancelar transacao]
+        M12[Liberar quantidade da oferta]
+        JOIN2["JOIN"]
+    end
+
+    subgraph VENDEDOR["Raia 3 - Empresa Vendedora"]
+        V1[Analisar proposta]
+        D3{Proposta aceita?}
+        V2[Rejeitar proposta]
+        V3[Aceitar proposta]
+        V4[Receber autorizacao para continuidade]
+    end
+
+    subgraph ESCROW["Raia 4 - Gateway de Escrow"]
+        E1[Criar cobranca]
+        E2[Aguardar deposito]
+        E3[Conciliar pagamento]
+        E4[Enviar confirmacao ou falha]
+    end
+
+    subgraph NOTIFICACOES["Raia 5 - Servico de Notificacoes"]
+        N1[Notificar vendedor sobre nova proposta]
+        N2[Notificar pagamento confirmado]
+        N3[Notificar cancelamento]
+    end
+
+    C1 --> C2
+    C2 --> C3
+    C3 --> M1
+    M1 --> D1
+
+    D1 -- "[valida && quantidadeDisponivel]" --> M2
+    D1 -- "[!valida || !quantidadeDisponivel]" --> M3
+    M3 --> C5
+    C5 --> FIM([Fim])
+
+    M2 --> N1
+    N1 --> V1
+    V1 --> D3
+
+    D3 -- "[aceita]" --> V3
+    D3 -- "[rejeitada]" --> V2
+    V2 --> C5
+
+    V3 --> M4
+    M4 --> M5
+    M5 --> M6
+    M6 --> M7
+    M7 --> E1
+    E1 --> C4
+    C4 --> E2
+    E2 --> E3
+    E3 --> E4
+    E4 --> D2
+
+    D2 -- "[fundosConfirmados && dentroDoPrazo]" --> FORK1
+    FORK1 --> M8
+    FORK1 --> M9
+    M8 --> JOIN1
+    M9 --> JOIN1
+    JOIN1 --> M10
+    M10 --> N2
+    N2 --> V4
+    V4 --> C5
+
+    D2 -- "[pagamentoRecusado || prazoExpirado]" --> FORK2
+    FORK2 --> M11
+    FORK2 --> M12
+    M11 --> JOIN2
+    M12 --> JOIN2
+    JOIN2 --> N3
+    N3 --> C5
+
+    style FORK1 fill:#222,color:#fff,stroke:#222,stroke-width:4px
+    style JOIN1 fill:#222,color:#fff,stroke:#222,stroke-width:4px
+    style FORK2 fill:#222,color:#fff,stroke:#222,stroke-width:4px
+    style JOIN2 fill:#222,color:#fff,stroke:#222,stroke-width:4px
