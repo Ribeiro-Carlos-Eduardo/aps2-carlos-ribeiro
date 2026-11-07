@@ -4,9 +4,9 @@
 
 **Aluno:** Carlos Ribeiro  
 **Unidade Curricular:** Modelagem de Software  
-**Curso:** Engenharia de Software  
+**Curso:** Engenharia de Software - 4º Período  
 **Instituição:** UniSenai  
-**Modalidade:** Avaliação Prática Supervisionada, APS 2  
+**Modalidade:** Avaliação Prática Supervisionada - APS 2  
 **Tipo de entrega:** Individual  
 
 ---
@@ -17,25 +17,25 @@
 
 A funcionalidade começa quando uma empresa compradora seleciona uma oferta e envia uma proposta de negociação.
 
-O Marketplace valida os dados da proposta e verifica se existe quantidade disponível. Quando a proposta é válida, a empresa vendedora é notificada para aceitar ou rejeitar a negociação.
+O Marketplace valida os dados da proposta e verifica a disponibilidade da quantidade solicitada. Quando a proposta é válida, a empresa vendedora pode aceitar ou rejeitar a negociação.
 
-Após o aceite, a quantidade negociada é separada da oferta e uma cobrança é criada em um Gateway de Escrow. O valor permanece em custódia até a confirmação do pagamento.
+Após o aceite, a quantidade negociada é separada da oferta e uma transação é criada. Em seguida, uma cobrança é solicitada ao Gateway de Escrow.
 
-Se o pagamento for recusado ou expirar, a transação é cancelada e a quantidade separada é devolvida para a oferta.
+Se o pagamento for confirmado, a negociação prossegue. Caso o pagamento seja recusado ou expire, a transação é cancelada e a quantidade separada é devolvida para a oferta.
 
 ---
 
 ## 2. Objetivo da modelagem
 
-Este dossiê documenta a funcionalidade crítica sob cinco perspectivas:
+Este dossiê documenta a funcionalidade crítica sob cinco perspectivas complementares:
 
 1. interação cronológica entre os participantes;
 2. fluxo de atividades e responsabilidades;
 3. ciclo de vida da transação;
 4. organização arquitetural do sistema;
-5. justificativa de uma decisão arquitetural.
+5. decisão arquitetural relacionada ao pagamento em custódia.
 
-Os modelos são mantidos como código no repositório para permitir versionamento, auditoria e atualização contínua.
+Os modelos são mantidos como código no repositório para permitir versionamento, auditoria e evolução contínua da documentação.
 
 ---
 
@@ -53,7 +53,7 @@ Os modelos são mantidos como código no repositório para permitir versionament
 - criação da cobrança no Gateway de Escrow;
 - confirmação, recusa ou expiração do pagamento;
 - atualização do estado da transação;
-- liberação da quantidade em caso de falha;
+- liberação da quantidade em caso de cancelamento;
 - envio assíncrono de notificações;
 - registro dos eventos para auditoria.
 
@@ -61,7 +61,7 @@ Os modelos são mantidos como código no repositório para permitir versionament
 
 - transporte físico das sobras industriais;
 - emissão de nota fiscal;
-- processamento financeiro dentro do Marketplace;
+- processamento financeiro interno ao Marketplace;
 - armazenamento de dados bancários;
 - liberação final dos fundos após a entrega;
 - tratamento de disputas comerciais.
@@ -73,9 +73,9 @@ Os modelos são mantidos como código no repositório para permitir versionament
 - **RN01:** Uma negociação somente poderá ser concluída após o aceite de uma proposta válida.
 - **RN02:** Uma sobra industrial somente poderá ser negociada enquanto houver quantidade disponível.
 - **RN03:** O pagamento somente poderá ser solicitado após a separação da quantidade negociada.
-- **RN04:** Uma confirmação de pagamento somente poderá alterar a transação quando a assinatura do webhook for válida.
+- **RN04:** Uma confirmação de pagamento somente poderá alterar a transação quando sua origem for válida.
 - **RN05:** Um pagamento recusado ou expirado deverá cancelar a transação e devolver a quantidade para a oferta.
-- **RN06:** Eventos ou cobranças duplicadas deverão ser identificados por uma chave de idempotência.
+- **RN06:** Eventos ou cobranças duplicadas deverão ser controlados por meio de idempotência.
 - **RN07:** A negociação somente poderá ser confirmada quando os fundos estiverem retidos no Gateway de Escrow.
 
 ---
@@ -99,28 +99,74 @@ Os modelos são mantidos como código no repositório para permitir versionament
 
 ## 6. Artefato 1: Diagrama de Sequência
 
-O Diagrama de Sequência representa a ordem cronológica das interações entre os participantes.
+O Diagrama de Sequência representa a ordem cronológica das interações necessárias para concluir uma negociação.
 
-O modelo inclui:
+O modelo contempla:
 
 - chamadas síncronas;
 - comunicação assíncrona;
 - retornos utilizando DTOs;
-- fragmentos combinados `alt/else`;
-- repetição utilizando `loop`;
-- confirmação, recusa e expiração do pagamento.
+- fragmento combinado `alt/else`;
+- repetição através de `loop`;
+- fluxo de pagamento confirmado;
+- fluxo de pagamento recusado ou expirado.
 
-### Código-fonte
+### Principais participantes
 
-[Consultar o Diagrama de Sequência](docs/diagrams/sequencia.mmd)
+1. Empresa Compradora;
+2. Aplicação Web;
+3. Marketplace API;
+4. Serviço de Negociação;
+5. Serviço de Ofertas;
+6. Repositório;
+7. Empresa Vendedora;
+8. Gateway de Escrow;
+9. Serviço de Notificações.
+
+### Fluxo principal
+
+```text
+Empresa Compradora
+        |
+        v
+Enviar proposta
+        |
+        v
+Marketplace
+        |
+        v
+Validar disponibilidade
+        |
+        v
+Empresa Vendedora
+        |
+        v
+Aceitar proposta
+        |
+        v
+Separar quantidade
+        |
+        v
+Gateway de Escrow
+        |
+        v
+Pagamento
+        |
+        v
+Confirmar negociação
+```
+
+### Código-fonte do Diagrama de Sequência
+
+[Consultar sequencia.mmd](docs/diagrams/sequencia.mmd)
 
 ---
 
 ## 7. Artefato 2: Diagrama de Atividades com Raias
 
-O Diagrama de Atividades representa o fluxo de trabalho da negociação.
+O Diagrama de Atividades representa o fluxo completo da negociação e define as responsabilidades envolvidas no processo.
 
-As responsabilidades foram separadas nas seguintes raias:
+### Raias utilizadas
 
 1. Empresa Compradora;
 2. Marketplace;
@@ -128,125 +174,271 @@ As responsabilidades foram separadas nas seguintes raias:
 4. Gateway de Escrow;
 5. Serviço de Notificações.
 
-O modelo também apresenta:
+### Condições de guarda
 
-- decisões com condições de guarda;
-- condições mutuamente exclusivas;
-- caminhos de confirmação e cancelamento;
-- execução paralela com `Fork`;
-- sincronização das tarefas com `Join`.
+Foram consideradas as seguintes condições:
 
-### Código-fonte
+```text
+[propostaValida && quantidadeDisponivel]
 
-[Consultar o Diagrama de Atividades](docs/diagrams/atividades.mmd)
+[!propostaValida || !quantidadeDisponivel]
+
+[fundosConfirmados && dentroDoPrazo]
+
+[pagamentoRecusado || prazoExpirado]
+```
+
+### Concorrência
+
+O modelo utiliza estruturas de divisão e sincronização para representar processamento paralelo.
+
+No fluxo de sucesso:
+
+```text
+                 FORK
+                /    \
+               v      v
+Atualizar transação   Registrar auditoria
+               \      /
+                v    v
+                 JOIN
+                  |
+                  v
+        Confirmar negociação
+```
+
+No fluxo de falha:
+
+```text
+               FORK
+              /    \
+             v      v
+Cancelar transação   Liberar quantidade
+             \      /
+              v    v
+               JOIN
+                |
+                v
+       Notificar cancelamento
+```
+
+### Código-fonte do Diagrama de Atividades
+
+[Consultar atividades.mmd](docs/diagrams/atividades.mmd)
 
 ---
 
 ## 8. Artefato 3: Diagrama de Transição de Estados
 
-A entidade principal da máquina de estados é a **Transação**.
+A entidade principal selecionada para a máquina de estados é a **Transação**.
 
-O ciclo de vida principal é:
+O ciclo de vida principal da entidade é:
 
 ```text
+[*]
+ |
+ v
 Criada
-  |
-  v
+ |
+ v
 EmAnalise
-  |
-  v
+ |
+ v
 PropostaAceita
-  |
-  v
+ |
+ v
 SobraSeparada
-  |
-  v
+ |
+ v
 AguardandoPagamento
-  |
-  v
+ |
+ v
 FundosRetidos
-  |
-  v
+ |
+ v
 Confirmada
-  |
-  v
+ |
+ v
 Concluida
+ |
+ v
+[*]
 ```
 
-Também existem os seguintes estados alternativos:
+### Estados alternativos
 
-- `Cancelada`;
-- `Expirada`.
+A partir do fluxo principal, a transação também poderá chegar aos seguintes estados:
 
-O estado `AguardandoPagamento` possui:
+```text
+Cancelada
+   |
+   v
+  [*]
+```
 
-- subestados;
-- ação `entry`;
-- ação `do`;
-- ação `exit`;
-- transições com gatilho;
-- condições de guarda;
-- ações de efeito.
+ou:
 
-### Código-fonte
+```text
+Expirada
+   |
+   v
+  [*]
+```
 
-[Consultar o Diagrama de Estados](docs/diagrams/estados.mmd)
+### Subestados de AguardandoPagamento
+
+```text
+AguardandoPagamento
+        |
+        +-- CobrancaCriada
+        |
+        +-- Conciliando
+```
+
+### Exemplo de transição formal
+
+```text
+confirmarPagamento
+[pagamentoValido]
+/
+registrarCustodia()
+```
+
+A transição contém:
+
+- **Gatilho:** `confirmarPagamento`;
+- **Condição de guarda:** `[pagamentoValido]`;
+- **Ação de efeito:** `registrarCustodia()`.
+
+### Ações internas
+
+O estado `AguardandoPagamento` utiliza:
+
+```text
+entry / iniciarCronometro()
+
+do / monitorarPagamento()
+
+exit / encerrarCronometro()
+```
+
+### Código-fonte do Diagrama de Estados
+
+[Consultar estados.mmd](docs/diagrams/estados.mmd)
 
 ---
 
 ## 9. Artefato 4: Visão Arquitetural C4 Nível 2
 
-A visão C4 apresenta os contêineres internos do Marketplace e os sistemas externos envolvidos.
+A visão C4 Nível 2 representa os principais contêineres do Marketplace e os sistemas externos relacionados à funcionalidade.
 
-### 9.1 Contêineres propostos
+### Estrutura arquitetural
 
-- Aplicação Web em React;
-- Marketplace API em Node.js 20;
-- Worker de Eventos em Node.js 20;
-- Banco de Dados PostgreSQL 16;
-- Broker de Mensagens RabbitMQ.
+```text
+Empresa Compradora
+        |
+      HTTPS
+        |
+        v
++-------------------+
+|   Aplicação Web   |
+|       React       |
++-------------------+
+        |
+    REST/HTTPS
+        |
+        v
++-------------------+
+|  Marketplace API  |
+|     Node.js 20    |
++-------------------+
+   |        |       |
+   |        |       |
+ SQL/TCP    |       | REST/HTTPS
+   |        |       |
+   v        v       v
+PostgreSQL RabbitMQ Gateway Escrow
+              |
+             AMQP
+              |
+              v
+      Worker de Eventos
+              |
+          REST/HTTPS
+              |
+              v
+   Serviço de Notificações
+```
 
-### 9.2 Sistemas externos
+### Contêineres propostos
+
+| Contêiner | Tecnologia | Responsabilidade |
+|---|---|---|
+| Aplicação Web | React | Interface com compradores e vendedores |
+| Marketplace API | Node.js 20 | Regras e coordenação dos casos de uso |
+| Banco de Dados | PostgreSQL 16 | Persistência dos dados |
+| Broker | RabbitMQ | Mensageria assíncrona |
+| Worker de Eventos | Node.js 20 | Processamento dos eventos |
+
+### Sistemas externos
 
 - Gateway de Escrow;
 - Serviço de Notificações.
 
-### 9.3 Protocolos de comunicação
+### Protocolos
 
 - HTTPS;
 - REST/JSON;
 - SQL/TCP;
 - Webhook/HTTPS;
-- AMQP 0-9-1;
-- e-mail.
+- AMQP.
 
-### Código-fonte
+### Models-as-Code
 
-[Consultar a Visão C4 Nível 2](docs/architecture/workspace.dsl)
+[Consultar workspace.dsl](docs/architecture/workspace.dsl)
 
-> **Observação:** As tecnologias apresentadas constituem uma proposta arquitetural para esta APS e poderão ser ajustadas conforme a stack efetivamente adotada pelo projeto.
+> **Observação:** React, Node.js 20, PostgreSQL 16 e RabbitMQ foram adotados como premissas arquiteturais para esta APS. Caso a implementação real utilize tecnologias diferentes, essas tecnologias deverão ser atualizadas no modelo.
 
 ---
 
-## 10. Artefato 5: Registro de Decisão Arquitetural
+## 10. Artefato 5: Registro de Decisão Arquitetural - ADR 0001
 
-A ADR 0001 documenta e justifica a utilização de um Gateway de Escrow externo para manter o pagamento em custódia durante a negociação.
+### Decisão
 
-A decisão busca:
+Utilizar um Gateway de Escrow externo para manter os fundos em custódia durante a negociação.
 
-- reduzir o risco financeiro entre comprador e vendedor;
-- separarrmações de pagamento de maneira segura;
-- impedir cobranças duplicadas com idempotência.
+### Contexto
 
-### Documento
+Comprador e vendedor precisam possuir proteção durante uma negociação B2B.
 
-docs/architecture/adr-0001.md
+O vendedor necessita de confirmação financeira antes da continuidade da negociação, enquanto o comprador precisa evitar o pagamento direto sem rastreabilidade.
+
+### Consequências positivas
+
+- redução do risco financeiro;
+- separação do processamento financeiro das responsabilidades do Marketplace;
+- maior rastreabilidade;
+- possibilidade de auditoria;
+- controle de cobranças duplicadas;
+- melhor separação de responsabilidades.
+
+### Consequências negativas e riscos
+
+- dependência de um sistema externo;
+- aumento da complexidade de integração;
+- necessidade de tratamento de falhas;
+- necessidade de tratar eventos duplicados;
+- necessidade de compensação caso o pagamento falhe após a separação da quantidade.
+
+### Documento completo
+
+[Consultar ADR 0001](docs/architecture/adr-0001.md)
 
 ---
 
 ## 11. DTOs utilizados
 
-Os seguintes objetos de transferência de dados aparecem na modelagem:
+Os principais DTOs utilizados na modelagem são:
 
 - `PropostaRequestDTO`;
 - `PropostaDTO`;
@@ -268,28 +460,26 @@ Os seguintes objetos de transferência de dados aparecem na modelagem:
 
 | Componente | Operações públicas |
 |---|---|
-| Marketplace API | `POST /propostas`, `aceitarProposta()`, `webhookPagamentoConfirmado()` e `webhookPagamentoFalhou()` |
-| Serviço de Negociação | `criarProposta()`, `aceitarProposta()`, `confirmarPagamento()` e `cancelarTransacao()` |
-| Serviço de Ofertas | `consultarDisponibilidade()`, `separarQuantidade()` e `liberarQuantidade()` |
-| Repositório | `buscarOfertaPorId()`, `salvarProposta()`, `salvarTransacao()`, `atualizarQuantidade()` e `atualizarStatus()` |
-| Gateway de Escrow | `criarCobranca()` e `verificarPagamento()` |
-| Serviço de Notificações | `notificarNovaProposta()`, `notificarPagamento()` e `notificarCancelamento()` |
+| Marketplace API | `POST /propostas`, `aceitarProposta()`, `webhookPagamentoConfirmado()`, `webhookPagamentoFalhou()` |
+| Serviço de Negociação | `criarProposta()`, `aceitarProposta()`, `confirmarPagamento()`, `cancelarTransacao()` |
+| Serviço de Ofertas | `consultarDisponibilidade()`, `separarQuantidade()`, `liberarQuantidade()` |
+| Repositório | `buscarOfertaPorId()`, `salvarProposta()`, `salvarTransacao()`, `atualizarQuantidade()`, `atualizarStatusotificarPagamento()`, `notificarCancelamento()` |
 
 ---
 
 ## 13. Matriz de consistência entre os modelos
 
-| Regra ou evento | Sequência | Atividades | Estados | C4 e ADR |
+| Regra ou evento | Sequência | Atividades | Estados | C4 / ADR |
 |---|---|---|---|---|
-| Validar proposta | `criarProposta()` | Validar dados | `Criada` para `EmAnalise` | Marketplace API |
-| Verificar quantidade | `consultarDisponibilidade()` | Decisão de disponibilidade | Guarda `quantidadeDisponivel` | API e Banco de Dados |
-| Aceitar proposta | `aceitarProposta()` | Decisão da empresa vendedora | `EmAnalise` para `PropostaAceita` | Aplicação Web e API |
-| Separar quantidade | `separarQuantidade()` | Separar quantidade | `PropostaAceita` para `SobraSeparada` | API e Banco de Dados |
-| Criar cobrança | `criarCobranca()` | Gateway cria a cobrança | `SobraSeparada` para `AguardandoPagamento` | Gateway e ADR 0001 |
-| Confirmar pagamento | `confirmarPagamento()` | Decisão de pagamento | `AguardandoPagamento` para `FundosRetidos` | Webhook HTTPS |
-| Cancelar transação | `cancelarTransacao()` | Fluxo de cancelamento | Estado `Cancelada` | API, Banco de Dados e ADR |
-| Liberar quantidade | `liberarQuantidade()` | Ação paralela de compensação | Efeito de cancelamento | API e Banco de Dados |
-| Notificar participantes | Mensagem assíncrona | Raia de notificações | Ação de efeito | RabbitMQ e Worker |
+| Validar proposta | `criarProposta()` | Validar proposta | `Criada -> EmAnalise` | Marketplace API |
+| Verificar quantidade | `consultarDisponibilidade()` | Decisão de disponibilidade | Guarda `quantidadeDisponivel` | API e Banco |
+| Aceitar proposta | `aceitarProposta()` | Avaliação do vendedor | `EmAnalise -> PropostaAceita` | Aplicação Web e API |
+| Separar quantidade | `separarQuantidade()` | Separar quantidade | `PropostaAceita -> SobraSeparada` | API e Banco |
+| Criar cobrança | `criarCobranca()` | Solicitar custódia | `SobraSeparada -> AguardandoPagamento` | Gateway / ADR |
+| Confirmar pagamento | `confirmarPagamento()` | Pagamento confirmado | `AguardandoPagamento -> FundosRetidos` | Webhook |
+| Cancelar transação | `cancelarTransacao()` | Fluxo de cancelamento | `Cancelada` | API / ADR |
+| Liberar quantidade | `liberarQuantidade()` | Compensação | Ação de cancelamento | API e Banco |
+| Notificar participantes | Mensagem assíncrona | Raia de notificações | Ação de efeito | Broker / Worker |
 
 ---
 
@@ -310,32 +500,64 @@ aps2-carlos-ribeiro/
 
 ---
 
-## 15. Critérios atendidos
+## 15. Checklist da APS
 
-- [x] Diagrama de Sequência desenvolvido como código;
+### Diagrama de Sequência
+
+- [x] desenvolvido como código;
 - [x] chamadas síncronas;
 - [x] comunicação assíncrona;
-- [x] fragmentos combinados `alt/else`;
-- [x] repetição utilizando `loop`;
-- [x] retornos utilizando DTOs;
-- [x] Diagrama de Atividades com pelo menos três raias;
-- [x] condições de guarda mutuamente exclusivas;
-- [x] execução paralela utilizando `Fork` e `Join`;
-- [x] máquina de estados com estado inicial;
-- [x] máquina de estados com estados terminais;
-- [x] utilização de subestados;
-- [x] transições com gatilho, guarda e ação;
-- [x] ações internas `entry`, `do` e `exit`;
+- [x] fragmento `alt/else`;
+- [x] fragmento `loop`;
+- [x] utilização de DTOs;
+- [x] tratamento de exceções.
+
+### Diagrama de Atividades
+
+- [x] cinco raias;
+- [x] condições de guarda;
+- [x] condições mutuamente exclusivas;
+- [x] execução paralela;
+- [x] Fork;
+- [x] Join.
+
+### Máquina de Estados
+
+- [x] estado inicial;
+- [x] estados terminais;
+- [x] subestados;
+- [x] gatilhos;
+- [x] condições de guarda;
+- [x] ações de efeito;
+- [x] `entry`;
+- [x] `do`;
+- [x] `exit`.
+
+### C4
+
 - [x] visão C4 Nível 2;
-- [x] tecnologias e protocolos identificados;
-- [x] ADR estruturada no formato Nygard;
-- [x] consistência lógica entre os cinco artefatos;
-- [x] evolução da atividade registrada por commits.
+- [x] contêineres;
+- [x] sistemas externos;
+- [x] tecnologias;
+- [x] protocolos;
+- [x] Models-as-Code.
+
+### ADR e governança
+
+- [x] ADR 0001;
+- [x] contexto;
+- [x] decisão;
+- [x] consequências;
+- [x] riscos;
+- [x] consistência lógica entre os artefatos;
+- [x] evolução registrada por commits.
 
 ---
 
 ## 16. Considerações finais
 
-A modelagem demonstra o comportamento e a arquitetura da funcionalidade de negociação de sobras industriais com pagamento em custódia.
+A modelagem apresenta diferentes perspectivas da mesma funcionalidade crítica do Marketplace B2B de Sobras Industriais.
 
-Os artefatos apresentam diferentes perspectivas do mesmo processo e mantêm consistência entre regras de negócio, mensagens, atividades, estados, componentes arquiteturais e decisões técnicas.
+O Diagrama de Sequência descreve as interações entre os participantes. O Diagrama de Atividades representa o fluxo e as responsabilidades. A Máquina de Estados controla o ciclo de vida da transação. A visão C4 representa a arquitetura do sistema e a ADR registra a principal decisão técnica.
+
+A utilização de **Diagrams-as-Code** e **Models-as-Code** permite manter a documentação versionada junto ao projeto, facilitando manutenção, auditoria e evolução da arquitetura.
