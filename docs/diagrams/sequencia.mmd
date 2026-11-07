@@ -1,0 +1,75 @@
+sequenceDiagram
+    autonumber
+
+    actor Comprador as Empresa Compradora
+    participant Web as Aplicacao Web
+    participant API as Marketplace API
+    participant Neg as Servico de Negociacao
+    participant Oferta as Servico de Ofertas
+    participant Repo as Repositorio
+    actor Vendedor as Empresa Vendedora
+    participant Escrow as Gateway de Escrow
+    participant Notif as Servico de Notificacoes
+
+    Comprador->>Web: Enviar proposta (PropostaRequestDTO)
+    Web->>API: POST /propostas (PropostaRequestDTO)
+    API->>Neg: criarProposta(PropostaRequestDTO)
+
+    Neg->>Oferta: consultarDisponibilidade(ofertaId, quantidade)
+    Oferta->>Repo: buscarOfertaPorId(ofertaId)
+    Repo-->>Oferta: OfertaDTO
+
+    alt Quantidade disponivel e proposta valida
+        Oferta-->>Neg: DisponibilidadeDTO(disponivel=true)
+        Neg->>Repo: salvarProposta(PropostaDTO)
+        Repo-->>Neg: PropostaDTO(status=PENDENTE)
+        Neg-->>API: PropostaResponseDTO
+        API-->>Web: 201 PropostaResponseDTO
+        Notif-->>Vendedor: Notificar nova proposta
+    else Quantidade insuficiente ou proposta invalida
+        Oferta-->>Neg: DisponibilidadeDTO(disponivel=false)
+        Neg-->>API: ErroNegocioDTO
+        API-->>Web: 422 ErroNegocioDTO
+    end
+
+    Vendedor->>API: Aceitar proposta
+    API->>Neg: aceitarProposta(propostaId)
+
+    Neg->>Oferta: separarQuantidade(ofertaId, quantidade)
+    Oferta->>Repo: atualizarQuantidade(ofertaId)
+    Repo-->>Oferta: OfertaDTO
+    Oferta-->>Neg: SeparacaoDTO(status=SEPARADA)
+
+    Neg->>Escrow: criarCobranca(EscrowCriacaoDTO)
+    Escrow-->>Neg: EscrowTransacaoDTO
+
+    Neg->>Repo: salvarTransacao(TransacaoDTO)
+    Repo-->>Neg: TransacaoDTO
+
+    Neg-->>API: PagamentoInstrucaoDTO
+    API-->>Web: PagamentoInstrucaoDTO
+
+    Comprador->>Escrow: Realizar pagamento
+
+    loop Ate confirmacao ou expiracao
+        Escrow->>Escrow: Verificar pagamento
+    end
+
+    alt Pagamento confirmado
+        Escrow-->>API: EscrowConfirmacaoDTO
+        API->>Neg: confirmarPagamento(EscrowConfirmacaoDTO)
+        Neg->>Repo: atualizarStatus(FUNDOS_RETIDOS)
+        Repo-->>Neg: TransacaoDTO
+        Neg--)Notif: pagamentoConfirmado
+        Notif--)Comprador: Notificar confirmacao
+        Notif--)Vendedor: Notificar pagamento
+    else Pagamento recusado ou expirado
+        Escrow-->>API: EscrowFalhaDTO
+        API->>Neg: cancelarTransacao(EscrowFalhaDTO)
+        Neg->>Oferta: liberarQuantidade(ofertaId, quantidade)
+        Oferta->>Repo: atualizarQuantidade(ofertaId)
+        Neg->>Repo: atualizarStatus(CANCELADA)
+        Neg--)Notif: transacaoCancelada
+        Notif--)Comprador: Notificar cancelamento
+        Notif--)Vendedor: Notificar cancelamento
+    end
